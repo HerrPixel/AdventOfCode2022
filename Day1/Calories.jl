@@ -16,9 +16,9 @@ function CaloriesOfTopElves(NrOfTopElves::Integer=1)
             push!(CalorieHeap, currCalories)
             pop!(CalorieHeap)
             currCalories = 0
-            continue
+        else
+            currCalories += parse(Int64, line)
         end
-    currCalories += parse(Int64, line)
     end
     println(sum(extract_all!(CalorieHeap)))
 end
