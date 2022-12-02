@@ -7,6 +7,7 @@ using DataStructures
 # When reading an empty line, we instead push the value to a minHeap and pop the lowest value,
 # therefore only keeping the top #NrOfTopElves values
 # Lastly when we finished reading the input, we output the sum of all remaining values in the heap.
+
 function CaloriesOfTopElves(NrOfTopElves::Integer=1)
     CalorieHeap = BinaryMinHeap{Int}(zeros(NrOfTopElves))
     currCalories = 0
