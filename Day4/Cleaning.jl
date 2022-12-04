@@ -3,13 +3,9 @@ function DominatingSections()
 
     for line in eachline("./Day4/input.txt")
         ranges = split(line, ",")
-        range1 = split(ranges[1],"-")
-        range2 = split(ranges[2],"-")
-
-        IntRange1 = [parse(Int64,x) for x in range1]
-        IntRange2 = [parse(Int64,x) for x in range2]
-        if (IntRange1[1] ≤ IntRange2[1] && IntRange1[2] ≥ IntRange2[2]) || (IntRange2[1] ≤ IntRange1[1] && IntRange2[2] ≥ IntRange1[2])
-            #println(IntRange1, " are dominating ", IntRange2)
+        a = Section(ranges[1])
+        b = Section(ranges[2])
+        if AreContained(a,b)
             NoOfDominatingSections += 1
         end
     end
@@ -17,24 +13,40 @@ function DominatingSections()
 end
 
 
-function DominatingSections2()
+function OverlappingSections()
     NoOfDominatingSections = 0
 
     for line in eachline("./Day4/input.txt")
         ranges = split(line, ",")
-        range1 = split(ranges[1],"-")
-        range2 = split(ranges[2],"-")
-
-        IntRange1 = [parse(Int64,x) for x in range1]
-        IntRange2 = [parse(Int64,x) for x in range2]
-        if (IntRange1[1] ≤ IntRange2[1] && IntRange1[2] ≥ IntRange2[2]) || (IntRange2[1] ≤ IntRange1[1] && IntRange2[2] ≥ IntRange1[2])
-            #println(IntRange1, " are dominating ", IntRange2)
-            NoOfDominatingSections += 1
-        elseif (IntRange1[1] ≤ IntRange2[1] ≤ IntRange1[2] ≤ IntRange2[2])
-            NoOfDominatingSections += 1
-        elseif (IntRange2[1] ≤ IntRange1[1] ≤ IntRange2[2] ≤ IntRange1[2])
+        a = Section(ranges[1])
+        b = Section(ranges[2])
+        if AreOverlapping(a,b)
             NoOfDominatingSections += 1
         end
     end
     println(NoOfDominatingSections)
 end
+
+struct Section
+    startArea::Integer
+    endArea::Integer
+
+    function Section(RangeString::AbstractString)
+        SplittedString = split(RangeString,"-")
+        return new(parse(Int64,SplittedString[1]), parse(Int64,SplittedString[2]))
+    end
+end
+
+function AreContained(a::Section, b::Section)
+    AInB = a.startArea ≤ b.startArea && b.endArea ≤ a.endArea
+    BInA = b.startArea ≤ a.startArea && a.endArea ≤ b.endArea
+    return AInB || BInA
+end
+
+function AreOverlapping(a::Section, b::Section)
+    ABeforeB = a.startArea ≤ b.startArea ≤ a.endArea
+    BBeforeA = b.startArea ≤ a.startArea ≤ b.endArea
+    return ABeforeB || BBeforeA
+end
+
+
