@@ -1,72 +1,80 @@
 using DataStructures
 
-function CratesOnTop()
+
+function CratesOnTop(TakeMultiple::Bool=false)
     
     lines = Iterators.Stateful(eachline("./Day5/input.txt"))
-    State = GetInitialState(lines)
+    Supplies = GetInitialSupplies(lines)
     
-    println("returned")
     while !isempty(lines)
-        line = popfirst!(lines)
-        words = split(line, " ")
-        howMany = parse(Int64,words[2])
-        from = parse(Int64,words[4])
-        to = parse(Int64,words[6])
-        println("I want to move ", howMany, " Crates from ", from, " to ", to)
-        temp = Stack{Char}()
-        for i in 1:howMany
-            push!(temp,pop!(State[from]))
-            for j in 1:length(temp) 
-                
-            end
-        end
-        for j in 1:length(temp) 
-            push!(State[to],pop!(temp))    
+        currInstruction = split(popfirst!(lines), " ")
+        cratesToMove = parse(Int64,currInstruction[2])
+        from = parse(Int64,currInstruction[4])
+        to = parse(Int64,currInstruction[6])
+
+        if TakeMultiple
+            Supplies = move9001(Supplies,cratesToMove,from,to)
+        else
+            Supplies = move9000(Supplies,cratesToMove,from,to)
         end
     end
-    finalConfig = ""
-    for i in eachindex(State) 
-        println(State[i])
-        finalConfig *= pop!(State[i])
+
+    finalConfiguration = ""
+    for i in eachindex(Supplies) 
+        finalConfiguration *= pop!(Supplies[i])
     end
-    println(finalConfig)
+    println(finalConfiguration)
 end
 
-function GetInitialState(lines::Base.Iterators.Stateful)
-    s = Vector{Stack{Char}}()
-    line = popfirst!(lines)
-    NoOfStacks = Int((length(line) + 1)/4)
-    println(NoOfStacks)
+function move9000(Supplies::Vector{Stack{Char}}, NoOfCrates::Integer, from::Integer, to::Integer)
+    for i in 1:NoOfCrates
+        push!(Supplies[to],pop!(Supplies[from]))
+    end
+    return Supplies
+end
+
+function move9001(Supplies::Vector{Stack{Char}}, NoOfCrates::Integer, from::Integer, to::Integer)
+    temporaryStack = Stack{Char}()
+    for i in 1:NoOfCrates
+        push!(temporaryStack,pop!(Supplies[from]))
+    end
+    for j in 1:NoOfCrates
+        push!(Supplies[to],pop!(temporaryStack))
+    end
+    return Supplies
+end
+
+function GetInitialSupplies(lines::Base.Iterators.Stateful)
+    Supplies = Vector{Stack{Char}}()
+    input = popfirst!(lines)
+    NoOfStacks = Int((length(input) + 1)/4)
 
     for i in 1:NoOfStacks
-        push!(s,Stack{Char}())
+        push!(Supplies,Stack{Char}())
     end
 
-    while line ≠ ""
-        println("We have line ", line, " and the second char is ", line[2])
-        if line[2] == "1"
-            line = popfirst!(lines)
+    while input ≠ ""
+        if input[2] == "1"
+            input = popfirst!(lines)
             continue
         end
         for i in 1:NoOfStacks
-            c = line[2+(i-1)*4]
+            c = input[2+(i-1)*4]
             if c == ' '
                 continue
             end
-            push!(s[i],c)
+            push!(Supplies[i],c)
         end
-        line = popfirst!(lines)
+        input = popfirst!(lines)
     end
 
-    InitialState = Vector{Stack{Char}}()
+    InitialSupplies = Vector{Stack{Char}}()
     for i in 1:NoOfStacks
-        push!(InitialState,Stack{Char}())
-        for j in 1:length(s[i])
-            push!(InitialState[i],pop!(s[i]))
+        push!(InitialSupplies,Stack{Char}())
+        for j in 1:length(Supplies[i])
+            push!(InitialSupplies[i],pop!(Supplies[i]))
         end
-        println(InitialState[i])
     end
 
-    return InitialState
+    return InitialSupplies
 end
-    
