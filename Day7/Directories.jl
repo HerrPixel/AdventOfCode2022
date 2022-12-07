@@ -1,64 +1,110 @@
 using DataStructures
 
-mutable struct fNode
-    size::Integer
+function getSizesBelowThreshold(lowerThan::Integer)
+    DirSizes = getDirectorySizes()
+    println(sum(filter(x -> x ≤ lowerThan, DirSizes)))
+end
 
-    function fNode(i::Integer)
-        return new(i)
+function makeEnoughSpace(spaceNeeded::Integer, maxSystemSpace::Integer)
+    DirSizes = getDirectorySizes()
+    #println(DirSizes[1])
+    #println(DirSizes)
+    currSpaceLeft = maxSystemSpace - last(DirSizes)
+    currSpaceNeeded = spaceNeeded - currSpaceLeft
+    DirSizes = filter(x -> x ≥ currSpaceNeeded, DirSizes)
+    println(reduce(min,DirSizes))
+end
+
+#=
+    cap = resolveStack2(Nodes, SizesOfNodes)
+    println("We have a size of ", cap)
+    need = 30000000 - (70000000 - cap)
+    best = 70000000
+    for i in SizesOfNodes
+        if i ≥ need && i < best
+            best = i
+        end
     end
-end
+    println(best)
 
-function addSize!(n::fNode, i::Integer)
-    n.size += i
-end
 
-function getSize(n::fNode)
-    return n.size
-end
 
-function getSizes()
-    SizesOfNodes = Vector{Int64}()
-    Nodes = Stack{fNode}()
+=#
+
+function getDirectorySizes()
+    SizesOfNodes = Vector{Integer}()
+    Nodes = Stack{Integer}()
     for line in eachline("./Day7/input.txt")
-        parseCommand(line, Nodes, SizesOfNodes)
+        parseLine(line, Nodes, SizesOfNodes)
     end
     resolveStack(Nodes, SizesOfNodes)
-    println(sum(SizesOfNodes))
+    return SizesOfNodes
+    #println(sum(filter( x -> x ≤ LowerThan, SizesOfNodes)))
 end
 
-function parseCommand(command::String, Nodes::Stack{fNode}, SizesOfNodes::Vector{Int64})
-    if command[1] == '$'
-        if command[3] == 'c'
-            if command[6] == '.'
-                dirSize = getSize(first(Nodes))
-                if dirSize ≤ 100000
-                    push!(SizesOfNodes, dirSize)
-                end
-                pop!(Nodes)
-                addSize!(first(Nodes), dirSize)
-            else
-                push!(Nodes, fNode(0))
-            end
-        end
-    elseif command[1] != 'd'
-        output = split(command, " ")
-        addSize!(first(Nodes), parse(Int64, output[1]))
+function parseLine(line::String, Nodes::Stack{Integer}, SizesOfNodes::Vector{Integer})
+    if line[1] == '$'
+        parseCommand(line,Nodes,SizesOfNodes)
+    else
+        parseDirectoryEntry(line,Nodes)
     end
+    return
 end
 
-function resolveStack(Nodes::Stack{fNode}, SizesOfNodes::Vector{Int64})
-    dirSize = getSize(first(Nodes))
-    if dirSize ≤ 100000
+function parseDirectoryEntry(entry::String, Nodes::Stack{Integer})
+    if entry[1] != 'd'
+        addFileSize(entry,Nodes)
+    end
+    return
+end
+
+function addFileSize(entry::String, Nodes::Stack{Integer})
+    output = split(entry, " ")
+    push!(Nodes, pop!(Nodes) + parse(Int, output[1]))
+    return
+end
+
+function parseCommand(command::String, Nodes::Stack{Integer}, SizesOfNodes::Vector{Integer})
+    if command[3] == 'c'
+        parseDirectoryChange(command, Nodes, SizesOfNodes)
+    end
+    return
+end
+
+function parseDirectoryChange(command::String, Nodes::Stack{Integer}, SizesOfNodes::Vector{Integer})
+    if command[6] == '.'
+        GoUpDirectory(Nodes, SizesOfNodes)
+    else
+        GoDownDirectory(Nodes)
+    end
+    return
+end
+
+function GoUpDirectory(Nodes::Stack{Integer}, SizesOfNodes::Vector{Integer}) 
+    DirectorySize = pop!(Nodes)
+    push!(SizesOfNodes, DirectorySize)
+    push!(Nodes, pop!(Nodes) + DirectorySize)
+    return
+end
+
+function GoDownDirectory(Nodes::Stack{Integer})
+    push!(Nodes,0)
+    return
+end
+
+function resolveStack(Nodes::Stack{Integer}, SizesOfNodes::Vector{Integer})
+    while !isempty(Nodes)
+        dirSize = pop!(Nodes)
         push!(SizesOfNodes, dirSize)
-    end
-    pop!(Nodes)
-    if !isempty(Nodes)
-        addSize!(first(Nodes), dirSize)
-    end
+        if !isempty(Nodes)
+            push!(Nodes, pop!(Nodes) + dirSize)
+        end
+    end 
 end
 
 #--------------------------------------
 
+#=
 function getBest()
     SizesOfNodes = Vector{Int64}()
     Nodes = Stack{fNode}()
@@ -107,3 +153,5 @@ function resolveStack2(Nodes::Stack{fNode}, SizesOfNodes::Vector{Int64})
         end
     end
 end
+
+=#
