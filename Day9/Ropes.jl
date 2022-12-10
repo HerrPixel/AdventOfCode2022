@@ -9,8 +9,8 @@
 # give out the number of those visited locations at the end.
 function moveRopes(NrOfSections::Integer)
 
-    # nested function to avoid code bloating
-    # this moves the head of the rope one step at a timeand then iterates
+    # Nested function to avoid code bloating.
+    # This moves the head of the rope one step at a timeand then iterates
     # through the rest of the rope and updates each section
     function move(step::Integer,howOftenHorizontal::Integer, howOftenVertical::Integer)
         for i in 1:howOftenHorizontal
@@ -37,8 +37,8 @@ function moveRopes(NrOfSections::Integer)
         end
     end
 
-    # nested function to avoid code bloating
-    # this lets a section of the rope follow its respective head
+    # Nested function to avoid code bloating.
+    # This lets a section of the rope follow its respective head
     # and returns its updated position
     function Follow(Head::Pair{Integer,Integer}, Tail::Pair{Integer,Integer})
         headX = Head.first
