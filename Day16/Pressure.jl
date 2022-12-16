@@ -1,4 +1,5 @@
 using DataStructures
+using Combinatorics
 
 mutable struct node
     name::String
@@ -29,35 +30,43 @@ function getMaximumFlow()
         end
     end
 
+    #=
     maxFound = 0
-    iteration = 1
+    iteration = 0
 
+    NrOfImportantEntries = length(NonTrivialEntries)
+    println(NrOfImportantEntries)
     # alle aufteilungen
-    for j in 1:2^length(NonTrivialEntries)
-        subsetCode = bitstring(j)
-        firstSet = Vector{Integer}()
-        secondSet = Vector{Integer}()
+    for h in div(NrOfImportantEntries,2):-1:1
+        #println(h)
+        for j in combinations(1:NrOfImportantEntries,h)
+            #println(j)
+            firstSet = Vector{Integer}()
+            secondSet = Vector{Integer}()
 
-        iteration += 1
-        println("Ich lebe noch in Iteration: ", iteration)
+            iteration += 1
+            println("Ich lebe noch in Iteration: ", iteration, " mit aktuellem Max: ", maxFound)
 
-        for k in eachindex(NonTrivialEntries)
-            if subsetCode[end-(k-1)] == '1'
-                push!(firstSet, NonTrivialEntries[k])
-            else
-                push!(secondSet, NonTrivialEntries[k])
+            for k in j
+                push!(firstSet,NonTrivialEntries[k])
             end
+            for k in 1:NrOfImportantEntries
+                if k ∉ j
+                    push!(secondSet,NonTrivialEntries[k])
+                end
+            end
+
+            firstValue = OrderSearch(startnode, distanceMatrix, firstSet, nodes)
+            secondValue = OrderSearch(startnode, distanceMatrix, secondSet, nodes)
+
+            #println(firstSet, " und ", secondSet)
+            #println("Mit ", subsetCode, " finde ich ", secondValue + firstValue)
+            maxFound = max(maxFound, firstValue + secondValue)
         end
-
-        firstValue = OrderSearch(startnode, distanceMatrix, firstSet, nodes)
-        secondValue = OrderSearch(startnode, distanceMatrix, secondSet, nodes)
-
-        #println(firstSet, " und ", secondSet)
-        #println("Mit ", subsetCode, " finde ich ", secondValue + firstValue)
-        maxFound = max(maxFound, firstValue + secondValue)
     end
-    #OrderSearch(startnode, distanceMatrix, NonTrivialEntries, nodes)
-    println(maxFound)
+    =#
+    println(OrderSearch(startnode, distanceMatrix, NonTrivialEntries, nodes))
+    #println(maxFound)
 end
 
 function OrderSearch(startNode::Integer, grid::Matrix, possibleNodes::Vector{Integer}, nodes::Vector{node})
@@ -107,7 +116,7 @@ function calculateFlow(currOrder::Stack{Integer}, grid::Matrix, startNode::Integ
     values = reverse(collect(Iterators.Stateful(currOrder)))
     for i in eachindex(values)
         time += grid[currNode, values[i]] + 1
-        value += (26 - time) * nodes[values[i]].flow # change between part1 and 2
+        value += (30 - time) * nodes[values[i]].flow # change between part1 and 2
         currNode = values[i]
     end
     #println("Mit ", values, " bekommen wir ", value, " mit Zeit ", time, " und startnode ", startNode)
