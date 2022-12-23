@@ -1,12 +1,21 @@
+mutable struct elf
+    nextState::Integer
+    WantToGo::Integer
+
+    function elf(state::Integer,wantToGo::Integer)
+        return new(state,wantToGo)
+    end
+end
+
 function parseInput()
     Positions = Dict()
 
     i = 1
-    for line in eachline("./Day23/smallerInput.txt")
+    for line in eachline("./Day23/input.txt")
         j = 1
         for c in line
             if c == '#'
-                Positions[(j, i)] = 0
+                Positions[(j, i)] = elf(0,4)
             end
             j += 1
         end
@@ -18,49 +27,52 @@ end
 function Part1()
     Positions = parseInput()
 
-    for elf in Positions
-        println(elf[1][1], ";", elf[1][2])
+    for elf in keys(Positions)
+        println(elf)
     end
     println("")
 
     for i in 1:10
         Propositions = Dict()
-        for elf in Positions
-            #println(elf)
-            x = elf[1][1]
-            y = elf[1][2]
+        for elf in keys(Positions)
+            x = elf[1]
+            y = elf[2]
+            state = Positions[(x,y)].nextState
             if allFree(x, y, Positions)
                 Propositions[(x, y)] = 1
-                Positions[(x, y)] = Positions[(x, y)] + 4
+                Positions[(x, y)].WantToGo = 4
             else
                 found = false
-                for j in 0:3
+                for j in 1:4
                     #println("Checking direction ", Positions[(x, y)], " from coordinates ", x, ",", y)
-                    if checkDirection(x, y, Positions, Positions[(x, y)], Propositions)
+                    if checkDirection(x, y, Positions, state, Propositions)
+                        Positions[(x,y)].WantToGo = state
                         found = true
                         break
                     else
-                        Positions[(x, y)] = mod(Positions[(x, y)] + 1, 4)
+                        state = mod(state + 1,4)
                     end
                 end
                 # if nothing is free
                 if !found
                     addProposition(x, y, Propositions)
-                    Positions[(x, y)] = Positions[(x, y)] + 4
+                    Positions[(x, y)].WantToGo = 4
                 end
             end
+            Positions[(x,y)].nextState = mod(Positions[(x,y)].nextState + 1,4)
         end
+
 
         #phase 2
 
 
         #println(Propositions)
         NewPositions = Dict()
-        for elf in Positions
-            x = elf[1][1]
-            y = elf[1][2]
-            state = elf[2]
-            MoveIfFree(x, y, state, Propositions, Positions, NewPositions)
+        for elf in keys(Positions)
+            x = elf[1]
+            y = elf[2]
+            direction = Positions[(x,y)].WantToGo
+            MoveIfFree(x, y, direction, Propositions, Positions, NewPositions)
         end
         Positions = NewPositions
 
@@ -76,9 +88,9 @@ function Part1()
     minX = 0
     maxY = 0
     minY = 0
-    for elf in Positions
-        x = elf[1][1]
-        y = elf[1][2]
+    for elf in keys(Positions)
+        x = elf[1]
+        y = elf[2]
         println(x, ",", y)
         maxX = max(x, maxX)
         minX = min(x, minX)
@@ -95,21 +107,114 @@ function Part1()
     println(finalsize)
 end
 
+function Part2()
+    Positions = parseInput()
+
+    #=
+    for elf in keys(Positions)
+        println(elf)
+    end
+    println("")
+    =#
+
+    nothingMoved = false
+    k = 0
+    while !nothingMoved
+        k += 1
+        println("Round Number: ", k)
+        Propositions = Dict()
+        for elf in keys(Positions)
+            x = elf[1]
+            y = elf[2]
+            state = Positions[(x,y)].nextState
+            if allFree(x, y, Positions)
+                Propositions[(x, y)] = 1
+                Positions[(x, y)].WantToGo = 4
+            else
+                found = false
+                for j in 1:4
+                    #println("Checking direction ", Positions[(x, y)], " from coordinates ", x, ",", y)
+                    if checkDirection(x, y, Positions, state, Propositions)
+                        Positions[(x,y)].WantToGo = state
+                        found = true
+                        break
+                    else
+                        state = mod(state + 1,4)
+                    end
+                end
+                # if nothing is free
+                if !found
+                    addProposition(x, y, Propositions)
+                    Positions[(x, y)].WantToGo = 4
+                end
+            end
+            Positions[(x,y)].nextState = mod(Positions[(x,y)].nextState + 1,4)
+        end
+
+
+        #phase 2
+
+
+        #println(Propositions)
+        NewPositions = Dict()
+        for elf in keys(Positions)
+            x = elf[1]
+            y = elf[2]
+            direction = Positions[(x,y)].WantToGo
+            MoveIfFree(x, y, direction, Propositions, Positions, NewPositions)
+        end
+        if Positions == NewPositions
+            nothingMoved = true
+        end
+        Positions = NewPositions
+
+        #=
+        # state only changes once per round
+        for elf in Positions
+            println(elf[1][1], ";", elf[1][2])
+        end
+        println("")
+        =#
+
+    end
+
+    #=
+    maxX = 0
+    minX = 0
+    maxY = 0
+    minY = 0
+    for elf in keys(Positions)
+        x = elf[1]
+        y = elf[2]
+        println(x, ",", y)
+        maxX = max(x, maxX)
+        minX = min(x, minX)
+        maxY = max(y, maxY)
+        minY = min(y, minY)
+    end
+
+    width = abs(maxX - minX) + 1
+    println(width)
+    height = abs(maxY - minY) + 1
+    println(height)
+    RectangleSize = width * height
+    finalsize = RectangleSize - length(Positions)
+    println(finalsize)
+    =#
+    println(k)
+end
+
 function MoveIfFree(x, y, state, Propositions, Positions, NewPositions)
     if state == 0 && get(Propositions, (x, y - 1), 0) == 1
-        delete!(Positions, (x, y))
-        NewPositions[(x, y - 1)] = state + 1
+        NewPositions[(x, y - 1)] = Positions[(x,y)]
     elseif state == 1 && get(Propositions, (x, y + 1), 0) == 1
-        delete!(Positions, (x, y))
-        NewPositions[(x, y + 1)] = state + 1
+        NewPositions[(x, y + 1)] = Positions[(x,y)]
     elseif state == 2 && get(Propositions, (x - 1, y), 0) == 1
-        delete!(Positions, (x, y))
-        NewPositions[(x - 1, y)] = state + 1
+        NewPositions[(x - 1, y)] = Positions[(x,y)]
     elseif state == 3 && get(Propositions, (x + 1, y), 0) == 1
-        delete!(Positions, (x, y))
-        NewPositions[(x + 1, y)] = 0
+        NewPositions[(x + 1, y)] = Positions[(x,y)]
     else
-        NewPositions[(x, y)] = mod(state + 1, 4)
+        NewPositions[(x, y)] = Positions[(x,y)]
     end
 end
 
