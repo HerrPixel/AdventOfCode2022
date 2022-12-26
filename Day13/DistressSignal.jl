@@ -1,109 +1,99 @@
+# Solution to Puzzle 1 is getPackageOrderNumber()
+# Solution to Puzzle 2 is GetDecoderKey()
 
-#=
-function getSumOfRightOrderPackages
+# We first parse each line and then compare two at a time.
+# Via Julias Multiple Dispatch, the compare function
+# best suited to the current arguments is chosen.
+# If we couldn't reach a decision at this comparison,
+# we return nothing and let the next step handle the result.
+function getPackageOrderNumber()
 
-    a = SubString(a,2,length(a) - 1)
-    b = SubString(b,2,length(b) - 1)
-end
-=#
-function decoderKey()
-    packages = Vector{String}()
-    lines = Iterators.Stateful(eachline("./Day13/input.txt"))
+    PackageOrderNumber = 0
+    lists = parseInput()
 
-    while !isempty(lines)
-        group = collect(Iterators.take(lines,3))
-
-        push!(packages,group[1])
-        push!(packages,group[2])
-    end
-
-    push!(packages,"[[2]]")
-    push!(packages,"[[6]]")
-
-    sort!(packages, lt=isInRightOrder)
-
-    first = findfirst(x -> x == "[[2]]",packages)
-    second = findfirst(x -> x == "[[6]]",packages)
-
-    println(first * second)
-
-end
-
-
-function getRightOrderPackageNumbers()
-
-    rightOrderPackages = 0
-    PairNumber = 1
-    lines = Iterators.Stateful(eachline("./Day13/input.txt"))
-
-    while !isempty(lines)
-        group = collect(Iterators.take(lines,3))
-
-        if isInRightOrder(group[1],group[2])
-            rightOrderPackages += PairNumber
+    # taking input in pairs of two and then comparing them
+    for i in 1:div(length(lists),2)
+        if compare(lists[2 * i - 1],lists[2 * i])
+            PackageOrderNumber += i
         end
-
-        PairNumber += 1
     end
 
-    println(rightOrderPackages)
-end
-    
-
-function isInRightOrder(a::AbstractString,b::AbstractString)
-    a = eval(Meta.parse(a))
-    b = eval(Meta.parse(b))
-    
-    result, finished = compare(a,b)
-    return result
+    println(PackageOrderNumber)
 end
 
+# We also parse the lines first and then add our two specia packages.
+# We then sort the list and search for the indices of the packages.
+# We could also just count the items lower then our packages
+# for a better performance but we are quick enough already.
+function GetDecoderKey()
+    lists = parseInput()
+    push!(lists,eval(Meta.parse("[[2]]")))
+    push!(lists,eval(Meta.parse("[[6]]")))
+
+    # We could just find out the number
+    # of packages lower than our special ones,
+    # to get their indices but we leave that as
+    # an exercise to the reader ;)
+    sort!(lists, lt=compare)
+    firstIndex = findfirst(isequal([[2]]),lists)
+    secondIndex = findfirst(isequal([[6]]),lists)
+
+    println(firstIndex * secondIndex)
+
+end
+
+# We use Julias eval to parse the strings to their respective lists.
+# This is very slow on compile time.
+# We could also build a custom list parser but I have also left that out
+function parseInput()
+    lists = Vector{<:Any}()
+    lines = Iterators.Stateful(eachline("./Day13/input.txt"))
+
+    while !isempty(lines)
+        group = collect(Iterators.take(lines,3))
+        push!(lists,eval(Meta.parse(group[1])))
+        push!(lists,eval(Meta.parse(group[2])))
+    end
+    
+    return lists
+end
+
+# We have multiple compare functions.
+# the most fitting one is chosen
+# because of multiple dispatch.
+# If a comparison couldn't decide, nothing is returned
 function compare(x::Integer,y::Integer)
-    if x < y
-        return true, true
-    elseif x > y
-        return false, true
+    if x == y
+        return nothing
     else
-        return false, false
+        return x < y
     end
 end
 
+# we first pairwise compare items from each list
+# until we run out of items.
+# If both lists run out simultaniously, we couldn't reach a conclusion
+# and return nothing. Otherwise we look if the first list is shorter.
 function compare(x::Vector{<:Any},y::Vector{<:Any})
-    i = 1
-    while true
-        if i > lastindex(x) && i ≤ lastindex(y)
-            return true, true
-        elseif i ≤ lastindex(x) && i > lastindex(y)
-            return false, true
-        elseif i > lastindex(x) && i > lastindex(y)
-            return false, false
-        else
-            result,finished = compare(x[i],y[i])
-            if finished
-                return result, true
-            else
-                i += 1
-            end
+    for i in 1:min(length(x),length(y))
+        result = compare(x[i],y[i])
+        if !isnothing(result)
+            return result
         end
     end
+    if length(x) == length(y)
+        return nothing
+    else
+        return length(x) < length(y)
+    end
 end
 
-function compare(x::Vector{<:Any},y::Integer) 
-    result, finished = compare(x,[y])
-    return result, finished
+# per specification, we transform the integer to a list.
+function compare(x::Vector{<:Any},y::Integer)
+    return compare(x,[y])
 end
 
+# per specification, we transform the integer to a list.
 function compare(x::Integer,y::Vector{<:Any}) 
-    result, finished = compare([x],y)
-    return result, finished
+    return compare([x],y)
 end
-
-#=
-function getFirstArgument(s::String)
-    m = match(r"\[(?:(\[(?:[0-9]|\,|\[|\])*\]|[1-9]*)(?:\,(?:\[(?:[0-9]|\,|\[|\])*\]|[1-9]*))+|([1-9]*)|(\[(?:[0-9]|\,|\[|\])*\]))\]", s).capture
-
-    firstArg = isnothing(capture[1]) ? (isnothing(capture[2]) ? (isnothing(capture[3] ? nothing : capture[3])): capture[2]) : capture[1]
-
-    return firstArg
-end
-=#
