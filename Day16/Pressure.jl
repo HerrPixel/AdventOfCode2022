@@ -1,196 +1,209 @@
 using DataStructures
 using Combinatorics
 
+# Solution for puzzle 1 is releaseMaximumPressureAlone()
+# Solution for puzzle 2 is releaseMaximumPressureWithElephant()
+
+# helper struct modeling a node in a graph
 mutable struct node
     name::String
+    index::Integer
     flow::Integer
     Neighbours::Vector{node}
 
-    function node(name::AbstractString, flow::Integer, Neighbours::Vector{node})
-        return new(name, flow, Neighbours)
+    function node(name::AbstractString, index::Integer, flow::Integer)
+        return new(name, index, flow, [])
     end
 
-    function node(name::AbstractString, flow::Integer)
-        return new(name, flow, [])
+    function node(name::AbstractString, index::Integer)
+        return new(name, index, 0, [])
     end
 end
 
-function getMaximumFlow()
-    nodes = parseInput()
-    distanceMatrix = distances(nodes)
-    startnode = 0
+# helper struct modeling the world for calculating the best Values for a valve combination.
+# With this, we avoid function header cluttering.
+mutable struct world
+    currNode::node
+    timeRemaining::Integer
+    openedValves::Set
+    currFlow::Integer
+    NonTrivialNodes::Vector{node}
+    distances::Matrix{Integer}
 
-    NonTrivialEntries = Vector{Integer}()
-    for i in eachindex(nodes)
-        if nodes[i].flow ≠ 0
-            push!(NonTrivialEntries, i)
-        end
-        if nodes[i].name == "AA"
-            startnode = i
-        end
+    function world(currNode::node, timeRemaining::Integer, openedValves::Set, currFlow::Integer, NonTrivialNodes::Vector{node}, distances::Matrix{<:Integer})
+        return new(currNode, timeRemaining, openedValves, currFlow, NonTrivialNodes, distances)
     end
-
-    #=
-    maxFound = 0
-    iteration = 0
-
-    NrOfImportantEntries = length(NonTrivialEntries)
-    println(NrOfImportantEntries)
-    # alle aufteilungen
-    for h in div(NrOfImportantEntries,2):-1:1
-        #println(h)
-        for j in combinations(1:NrOfImportantEntries,h)
-            #println(j)
-            firstSet = Vector{Integer}()
-            secondSet = Vector{Integer}()
-
-            iteration += 1
-            println("Ich lebe noch in Iteration: ", iteration, " mit aktuellem Max: ", maxFound)
-
-            for k in j
-                push!(firstSet,NonTrivialEntries[k])
-            end
-            for k in 1:NrOfImportantEntries
-                if k ∉ j
-                    push!(secondSet,NonTrivialEntries[k])
-                end
-            end
-
-            firstValue = OrderSearch(startnode, distanceMatrix, firstSet, nodes)
-            secondValue = OrderSearch(startnode, distanceMatrix, secondSet, nodes)
-
-            #println(firstSet, " und ", secondSet)
-            #println("Mit ", subsetCode, " finde ich ", secondValue + firstValue)
-            maxFound = max(maxFound, firstValue + secondValue)
-        end
-    end
-    =#
-    println(OrderSearch(startnode, distanceMatrix, NonTrivialEntries, nodes))
-    #println(maxFound)
 end
 
-function OrderSearch(startNode::Integer, grid::Matrix, possibleNodes::Vector{Integer}, nodes::Vector{node})
+# We parse the Input into a graph, use Floyd-Warshall to precompute the best distances
+# and then find out the best values for each combination of opened nodes, regardless of the order.
+# Finally we find the maximum of those values
+function releaseMaximumPressureAlone()
+    nodes, nodeNames = parseInput()
+    distances = FloydWarshallAlgorithm(nodes)
+
+    # we only need to select nodes with a non-trivial flow value,
+    # with floyd-warshall we already have the distances between them
+    # and can just ignore the rest of the graph.
+    NonTrivialValves = Vector{node}()
+    for currNode in nodes
+        if currNode.flow != 0
+            push!(NonTrivialValves, currNode)
+        end
+    end
+
+    # we initalize our "world" in which the simulating happens with the conditions of Part1
+    thisWorld = world(nodeNames["AA"], 30, Set([]), 0, NonTrivialValves, distances)
+    bestFlowValues = getBestFlowValues(thisWorld, Dict{Set,Integer}())
+
+    println(maximum(values(bestFlowValues)))
+end
+
+# We parse the input into a graph, use Floyd-Warshall to precompute the best distances
+# and then find out the best values for each combination of opened nodes, regardless of the order.
+# Finally we search the combination of nodes into two subsets 
+# whose combined released Pressure is the greatest.
+function releaseMaximumPressureWithElephant()
+    nodes, nodeNames = parseInput()
+    distances = FloydWarshallAlgorithm(nodes)
+
+    # Same as above, we only need to consider non-trivial valves
+    # and can ignore the rest
+    NonTrivialValves = Vector{node}()
+    for currNode in nodes
+        if currNode.flow != 0
+            push!(NonTrivialValves, currNode)
+        end
+    end
+
+    # we initialize our "world" with the conditions of Part2
+    thisWorld = world(nodeNames["AA"], 26, Set([]), 0, NonTrivialValves, distances)
+    bestFlowValues = getBestFlowValues(thisWorld, Dict{Set,Integer}())
+
+    # finally we find the maximum of the sum of two disjoint valve-subsets
+    println(disjointMaximum(bestFlowValues, bestFlowValues))
+end
+
+# Helper function to find the maximum of the sum of two disjoint valve-subsets
+function disjointMaximum(a::Dict{Set,Integer}, b::Dict{Set,Integer})
     currMax = 0
-    currOrder = Stack{Integer}() #indices in all of the nodes
-    orderedIndices = Stack{Integer}()
 
-    for i in eachindex(possibleNodes)
-        #println("Ich lebe noch!")
-        push!(currOrder, possibleNodes[i])
-        push!(orderedIndices, 0)
-        while !isempty(currOrder)
-
-
-            next = findNext(possibleNodes, currOrder, first(orderedIndices))
-            if next != 0 #&& length(currOrder) <= length(possibleNodes)
-
-                pop!(orderedIndices)
-                push!(orderedIndices, next)
-                push!(currOrder, possibleNodes[next])
-                push!(orderedIndices, 0)
-                currValue = calculateFlow(currOrder, grid, startNode, nodes)
-
-                if currValue == -1
-                    #println("hier")
-                    pop!(currOrder)
-                    pop!(orderedIndices)
-                else
-                    currMax = max(currMax, currValue)
-                end
-            else
-
-                pop!(currOrder)
-                pop!(orderedIndices)
+    for (Akey, Avalue) in a
+        for (Bkey, Bvalue) in b
+            if isdisjoint(Akey, Bkey)
+                currMax = max(currMax, Avalue + Bvalue)
             end
         end
     end
-
 
     return currMax
 end
 
-function calculateFlow(currOrder::Stack{Integer}, grid::Matrix, startNode::Integer, nodes::Vector{node})
-    value = 0
-    time = 0
-    currNode = startNode
-    values = reverse(collect(Iterators.Stateful(currOrder)))
-    for i in eachindex(values)
-        time += grid[currNode, values[i]] + 1
-        value += (30 - time) * nodes[values[i]].flow # change between part1 and 2
-        currNode = values[i]
-    end
-    #println("Mit ", values, " bekommen wir ", value, " mit Zeit ", time, " und startnode ", startNode)
-    if time > 30
-        return -1
-    else
-        return value
-    end
-end
+# This is where the magic happens.
+# We store the best values we found for a set of opened values regardless of the order
+# and then basically simulate every possible path and store those best values
+function getBestFlowValues(w::world, bestValues::Dict{Set,Integer})
+    # if our current value is better than the old best value
+    # for that set of opened valves, we update the best value
+    bestValues[w.openedValves] = max(get(bestValues, w.openedValves, 0), w.currFlow)
 
-function findNext(possibleNodes::Vector{Integer}, currOrder::Stack{Integer}, lastNode::Integer)
-    for i in lastNode+1:length(possibleNodes)
-        if possibleNodes[i] ∉ currOrder
-            #println("Index ", i, " mit wert ", possibleNodes[i], " ist nicht in", currOrder)
-            return i
+    # we then recurse for each node we can go to
+    for nextNode in w.NonTrivialNodes
+
+        time = w.timeRemaining - w.distances[w.currNode.index, nextNode.index] - 1
+
+        # if we ran out of time or have already opened this valve, skip 
+        if !(time ≤ 0 || nextNode ∈ w.openedValves)
+
+            # we need to make a copy, since Julia is pass-by-reference and 
+            # we want each recursion to be independent
+            newOpenedValves = push!(copy(w.openedValves), nextNode)
+
+            # notice that the total pressure added by a valve 
+            # is just the time remaining times its flow value
+            newFlow = w.currFlow + time * nextNode.flow
+
+
+            newWorld = world(nextNode, time, newOpenedValves, newFlow, w.NonTrivialNodes, w.distances)
+            getBestFlowValues(newWorld, bestValues)
         end
     end
-    return 0
+
+    return bestValues
 end
 
-function distances(nodes::Vector{node})
-    grid = zeros(Int, length(nodes), length(nodes))
-    for i in axes(grid, 1)
-        for j in axes(grid, 2)
-            grid[i, j] = 2^6
+# standard Floyd-Warshall Algorithm.
+# We populate the matrix with (hopefully) high enough values 
+# so that distances are intialized correctly.
+function FloydWarshallAlgorithm(nodes::Vector{node})
+    distances = zeros(Int, length(nodes), length(nodes))
+
+    # since we add two of these values in the min-check,
+    # having a value too large would lead to overflow
+    # and the sum would actually be negative.
+    fill!(distances, div(typemax(Int), 2))
+
+    for i in eachindex(nodes)
+        distances[i, i] = 0
+        for neighbour in nodes[i].Neighbours
+            j = neighbour.index
+            distances[i, j] = 1
         end
     end
 
     for i in eachindex(nodes)
-        for neighbour in nodes[i].Neighbours
-            j = findfirst(isequal(neighbour), nodes)
-            grid[i, j] = 1
-        end
-        grid[i, i] = 0
-    end
-
-    for k in eachindex(nodes)
-        for i in eachindex(nodes)
-            for j in eachindex(nodes)
-                if grid[i, j] > grid[i, k] + grid[k, j]
-                    grid[i, j] = grid[i, k] + grid[k, j]
-                end
+        for j in eachindex(nodes)
+            for k in eachindex(nodes)
+                distances[j, k] = min(distances[j, k], distances[j, i] + distances[i, k])
             end
         end
     end
 
-    return grid
+    return distances
 end
 
-
+# We match the parts of the input lines we need via a regex and then populate our nodes.
+# if a node is mentioned before its defining line is parsed, we create a preliminary version of it.
 function parseInput()
     nodes = Vector{node}()
-
     nodeNames = Dict{String,node}()
 
-    for line in eachline("./Day16/input.txt")
-        words = split(line, " ")
-        name = words[2]
-        value = rstrip(lstrip(words[5], ['r', 'a', 't', 'e', '=']), ';')
-        flow = parse(Int, value)
-        thisNode = node(name, flow)
-        push!(nodes, thisNode)
-        nodeNames[name] = thisNode
-    end
+    # This captures the relevant parts of the lines 
+    regex = r"Valve ([a-zA-Z]+) has flow rate=([0-9]+); tunnels* leads* to valves* ([a-zA-Z]+(?:, [a-zA-Z]+)*)"
 
+    # we keep this counter to populate each node with its index in the node Vector
+    i = 1
     for line in eachline("./Day16/input.txt")
-        words = split(line, " ")
-        name = words[2]
-        thisNode = nodeNames[name]
-        for i in 10:lastindex(words)
-            neighbour = rstrip(words[i], ',')
+        matches = match(regex, line)
+        name = matches[1]
+        flow = parse(Int, matches[2])
+        neighbours = split(matches[3], ", ")
+
+        # as mentioned above, if a node is mentioned before its relevant line was parsed
+        # a preliminary version was created. We fill that preliminary version if it existed,
+        # otherwise we create the node.
+        if haskey(nodeNames, matches[1])
+            thisNode = nodeNames[name]
+            thisNode.flow = flow
+        else
+            thisNode = node(name, i, flow)
+            nodeNames[name] = thisNode
+            push!(nodes, thisNode)
+            i += 1
+        end
+
+        # same as above, if a node is mentioned but hasn't been created,
+        # a preliminary version is made.
+        for neighbour in neighbours
+            if !haskey(nodeNames, neighbour)
+                neighbourNode = node(neighbour, i)
+                nodeNames[neighbour] = neighbourNode
+                push!(nodes, neighbourNode)
+                i += 1
+            end
             push!(thisNode.Neighbours, nodeNames[neighbour])
         end
     end
 
-    return nodes
+    return nodes, nodeNames
 end
