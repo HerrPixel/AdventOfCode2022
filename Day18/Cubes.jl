@@ -1,173 +1,167 @@
 using DataStructures
 
-function countAllSurface()
+# Solution to puzzle 1 is countAllSurface()
+# Solution to puzzle 2 is countExteriorSurface()
 
-    cubes = Set{Tuple{<:Integer,<:Integer,<:Integer}}()
+# helper struct to keep track of the maximum perimeter.
+# With this we can test if a surface is on the outside:
+# if there is a path of non-cubes to any coordinate
+# outside of the perimeter, then that surface cube is
+# not on the inside.
+mutable struct Perimeter
+    minX::Integer
+    maxX::Integer
+    minY::Integer
+    maxY::Integer
+    minZ::Integer
+    maxZ::Integer
 
-    for line in eachline("./Day18/input.txt")
-        coordinates = split(line,",")
-        push!(cubes,(parse(Int,coordinates[1]),parse(Int,coordinates[2]),parse(Int,coordinates[3])))
+    function Perimeter(minX::Integer, maxX::Integer, minY::Integer, maxY::Integer, minZ::Integer, maxZ::Integer)
+        return new(minX, maxX, minY, maxY, minZ, maxZ)
     end
-
-    sides = length(cubes) * 6
-
-    for c in cubes
-        if (c[1]+1,c[2],c[3]) ∈ cubes
-            sides += -1
-        end
-        if (c[1]-1,c[2],c[3]) ∈ cubes
-            sides += -1
-        end
-        if (c[1],c[2]+1,c[3]) ∈ cubes
-            sides += -1
-        end
-        if (c[1],c[2]-1,c[3]) ∈ cubes
-            sides += -1
-        end
-        if (c[1],c[2],c[3]+1) ∈ cubes
-            sides += -1
-        end
-        if (c[1],c[2],c[3]-1) ∈ cubes
-            sides += -1
-        end
-    end
-
-    println(sides)
 end
 
-function countExteriorSurface()
-    
-    cubes = Set{Tuple{<:Integer,<:Integer,<:Integer}}()
-    maxCoordinates = Vector{Integer}([0,0,0,0,0,0])
+# helper function for updating the perimeter with new inputs
+function updatePerimeter(perimeter::Perimeter, x::Integer, y::Integer, z::Integer)
+    perimeter.minX = min(perimeter.minX, x)
+    perimeter.maxX = max(perimeter.maxX, x)
+    perimeter.minY = min(perimeter.minY, y)
+    perimeter.maxY = max(perimeter.maxY, y)
+    perimeter.minZ = min(perimeter.minZ, z)
+    perimeter.maxZ = max(perimeter.maxZ, z)
+end
 
-    for line in eachline("./Day18/test.txt")
-        coordinates = split(line,",")
-        x = parse(Int,coordinates[1])
-        y = parse(Int,coordinates[2])
-        z = parse(Int,coordinates[3])
-        push!(cubes,(x,y,z))
-        maxCoordinates[1] = max(maxCoordinates[1],x)
-        maxCoordinates[2] = min(maxCoordinates[2],x)
-        maxCoordinates[3] = max(maxCoordinates[3],y)
-        maxCoordinates[4] = min(maxCoordinates[4],y)
-        maxCoordinates[5] = max(maxCoordinates[5],z)
-        maxCoordinates[6] = min(maxCoordinates[6],z)
+# helper function to test if a coordinate is in the perimeter
+function inBounds(perimeter::Perimeter, x::Integer, y::Integer, z::Integer)
+    isInBoundsX = perimeter.minX ≤ x ≤ perimeter.maxX
+    isInBoundsY = perimeter.minY ≤ y ≤ perimeter.maxY
+    isInBoundsZ = perimeter.minZ ≤ z ≤ perimeter.maxZ
+    return isInBoundsX && isInBoundsY && isInBoundsZ
+end
+
+# helper function to parse the input into a Set of cubes
+# and the minimal perimeter enclosing them
+function parseInput()
+    cubes = Set{Tuple{<:Integer,<:Integer,<:Integer}}()
+    perimeter = Perimeter(0, 0, 0, 0, 0, 0)
+
+    for line in eachline("./Day18/input.txt")
+        Stringx, Stringy, Stringz = split(line, ",")
+        x = parse(Int, Stringx)
+        y = parse(Int, Stringy)
+        z = parse(Int, Stringz)
+        push!(cubes, (x, y, z))
+        updatePerimeter(perimeter, x, y, z)
     end
+
+    return cubes, perimeter
+end
+
+# easy solution for puzzle 1, we calculate the maximum surface area,
+# i.e. if all 6 sides are free and then test each side if the neighbour
+# exists and subtract that side from the SurfaceArea
+function countAllSurface()
+
+    cubes, _ = parseInput()
+    neighbours = [(1, 0, 0), (-1, 0, 0), (0, 1, 0), (0, -1, 0), (0, 0, 1), (0, 0, -1)]
+    SurfaceArea = length(cubes) * 6
+
+    for (x, y, z) in cubes
+        for (Δx, Δy, Δz) in neighbours
+            if (x + Δx, y + Δy, z + Δz) ∈ cubes
+                SurfaceArea += -1
+            end
+        end
+    end
+
+    println(SurfaceArea)
+end
+
+# For puzzle 2, we first store each free coordinate adjacent to any cube
+# and then do BFS from each of those to check if they are on the outside or inside.
+# Finally we count the surface area of all cubes like in puzzle 1 but also check if
+# the neighbour is on the inside and also subtract this side from the Surface Area
+function countExteriorSurface()
+
+    cubes, perimeter = parseInput()
+    neighbours = [(1, 0, 0), (-1, 0, 0), (0, 1, 0), (0, -1, 0), (0, 0, 1), (0, 0, -1)]
 
     surfaces = Set{Tuple{<:Integer,<:Integer,<:Integer}}()
     insides = Set{Tuple{<:Integer,<:Integer,<:Integer}}()
     outsides = Set{Tuple{<:Integer,<:Integer,<:Integer}}()
 
-    for c in cubes
-        if (c[1]+1,c[2],c[3]) ∉ cubes
-            push!(surfaces,(c[1]+1,c[2],c[3]))
-        end
-        if (c[1]-1,c[2],c[3]) ∉ cubes
-            push!(surfaces,(c[1]-1,c[2],c[3]))
-        end
-        if (c[1],c[2]+1,c[3]) ∉ cubes
-            push!(surfaces,(c[1],c[2]+1,c[3]))
-        end
-        if (c[1],c[2]-1,c[3]) ∉ cubes
-            push!(surfaces,(c[1],c[2]-1,c[3]))
-        end
-        if (c[1],c[2],c[3]+1) ∉ cubes
-            push!(surfaces,(c[1],c[2],c[3]+1))
-        end
-        if (c[1],c[2],c[3]-1) ∉ cubes
-            push!(surfaces,(c[1],c[2],c[3]-1))
+    # finding out all adjacent coordinates that are not cubes themselves
+    for (x, y, z) in cubes
+        for (Δx, Δy, Δz) in neighbours
+            if (x + Δx, y + Δy, z + Δz) ∉ cubes
+                push!(surfaces, (x + Δx, y + Δy, z + Δz))
+            end
         end
     end
 
-    println("maxCoordinates:", maxCoordinates)
-    println("nr of surface cube: ", length(surfaces))
+    # BFS from each of those coordinates to check if they are on the inside or outside
     for cube in surfaces
-        println("testing surfaceCube")
+
+        # If we already labeled that coordinate, skip it
         if cube ∈ insides || cube ∈ outsides
             continue
         end
+
         visited = Set{Tuple{<:Integer,<:Integer,<:Integer}}()
         queue = Queue{Tuple{<:Integer,<:Integer,<:Integer}}()
-        enqueue!(queue,cube)
+        enqueue!(queue, cube)
+        push!(visited, cube)
         inside = true
-        tested = 1
-        while !isempty(queue) && inside
-            println("testNr: ", tested, " mit queue size: ", length(queue))
-            tested += 1
-            c = dequeue!(queue)
-            push!(visited,c)
-            if !inBounds(c,maxCoordinates)
-                inside = false  
+
+        while !isempty(queue)
+            (x, y, z) = dequeue!(queue)
+
+            # If a coordinate reaches outside of the perimeter, 
+            # then it is on the outside as well as every other coordinate it touches
+            if !inBounds(perimeter, x, y, z)
+                inside = false
                 break
             end
-            if (c[1]+1,c[2],c[3]) ∉ cubes && (c[1]+1,c[2],c[3]) ∉ visited && (c[1]+1,c[2],c[3]) ∉ queue
-                enqueue!(queue,(c[1]+1,c[2],c[3]))
-            end
-            if (c[1]-1,c[2],c[3]) ∉ cubes && (c[1]-1,c[2],c[3]) ∉ visited && (c[1]-1,c[2],c[3]) ∉ queue
-                enqueue!(queue,(c[1]-1,c[2],c[3]))
-            end
-            if (c[1],c[2]+1,c[3]) ∉ cubes && (c[1],c[2]+1,c[3]) ∉ visited && (c[1],c[2]+1,c[3]) ∉ queue
-                enqueue!(queue,(c[1],c[2]+1,c[3]))
-            end
-            if (c[1],c[2]-1,c[3]) ∉ cubes && (c[1],c[2]-1,c[3]) ∉ visited && (c[1],c[2]-1,c[3]) ∉ queue
-                enqueue!(queue,(c[1],c[2]-1,c[3]))
-            end
-            if (c[1],c[2],c[3]+1) ∉ cubes && (c[1],c[2],c[3]+1) ∉ visited && (c[1],c[2],c[3]+1) ∉ queue
-                enqueue!(queue,(c[1],c[2],c[3]+1))
-            end
-            if (c[1],c[2],c[3]-1) ∉ cubes && (c[1],c[2],c[3]-1) ∉ visited && (c[1],c[2],c[3]-1) ∉ queue
-                enqueue!(queue,(c[1],c[2],c[3]-1))
+
+            for (Δx, Δy, Δz) in neighbours
+                if (x + Δx, y + Δy, z + Δz) ∉ cubes && (x + Δx, y + Δy, z + Δz) ∉ visited
+                    enqueue!(queue, (x + Δx, y + Δy, z + Δz))
+                    push!(visited, (x + Δx, y + Δy, z + Δz))
+                end
             end
         end
+
+        # every coordinate that can be reached from the current one has the same label,
+        # so we label all of them simultaniously
         if inside
-            for v in visited
-                push!(insides,v)
-            end
-            while !isempty(queue)
-                push!(insides,dequeue!(queue))
-            end
+            flush(insides, queue, visited)
         else
-            for v in visited
-                push!(outsides,v)
-            end
-            while !isempty(queue)
-                push!(outsides,dequeue!(queue))
+            flush(outsides, queue, visited)
+        end
+    end
+
+    # finally the same strategy as in puzzle 1 
+    # except also ignoring coordinates on the inside
+
+    SurfaceArea = length(cubes) * 6
+
+    for (x, y, z) in cubes
+        for (Δx, Δy, Δz) in neighbours
+            if (x + Δx, y + Δy, z + Δz) ∈ cubes || (x + Δx, y + Δy, z + Δz) ∈ insides
+                SurfaceArea += -1
             end
         end
     end
 
-    sides = length(cubes) * 6
-
-    for c in cubes
-        if (c[1]+1,c[2],c[3]) ∈ cubes || (c[1]+1,c[2],c[3]) ∈ insides
-            sides += -1
-        end
-        if (c[1]-1,c[2],c[3]) ∈ cubes || (c[1]-1,c[2],c[3]) ∈ insides
-            sides += -1
-        end
-        if (c[1],c[2]+1,c[3]) ∈ cubes || (c[1],c[2]+1,c[3]) ∈ insides
-            sides += -1
-        end
-        if (c[1],c[2]-1,c[3]) ∈ cubes || (c[1],c[2]-1,c[3]) ∈ insides
-            sides += -1
-        end
-        if (c[1],c[2],c[3]+1) ∈ cubes || (c[1],c[2],c[3]+1) ∈ insides
-            sides += -1
-        end
-        if (c[1],c[2],c[3]-1) ∈ cubes || (c[1],c[2],c[3]-1) ∈ insides
-            sides += -1
-        end
-    end
-
-    #println(length(cubes))
-    #println(length(insides))
-
-    println(sides)
+    println(SurfaceArea)
 end
 
-function inBounds(cube::Tuple{<:Integer,<:Integer,<:Integer},maxCoordinates::Vector{Integer})
-    isInBoundsX = maxCoordinates[1] > cube[1] > maxCoordinates[2]
-    isInBoundsY = maxCoordinates[3] > cube[2] > maxCoordinates[4]
-    isInBoundsZ = maxCoordinates[5] > cube[3] > maxCoordinates[6]
-    return isInBoundsX && isInBoundsY && isInBoundsZ
+# helper function to label all reached coordinates simultaniously
+function flush(target::Set{Tuple{<:Integer,<:Integer,<:Integer}}, queue::Queue{Tuple{<:Integer,<:Integer,<:Integer}}, visitedCubes::Set{Tuple{<:Integer,<:Integer,<:Integer}})
+    for v in visitedCubes
+        push!(target, v)
+    end
+    while !isempty(queue)
+        push!(target, dequeue!(queue))
+    end
 end
