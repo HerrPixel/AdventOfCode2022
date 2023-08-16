@@ -5,32 +5,32 @@ using Combinatorics
 # Solution for puzzle 2 is releaseMaximumPressureWithElephant()
 
 # helper struct modeling a node in a graph
-mutable struct node
+mutable struct Node
     name::String
     index::Integer
     flow::Integer
-    Neighbours::Vector{node}
+    Neighbours::Vector{Node}
 
-    function node(name::AbstractString, index::Integer, flow::Integer)
+    function Node(name::AbstractString, index::Integer, flow::Integer)
         return new(name, index, flow, [])
     end
 
-    function node(name::AbstractString, index::Integer)
+    function Node(name::AbstractString, index::Integer)
         return new(name, index, 0, [])
     end
 end
 
 # helper struct modeling the world for calculating the best Values for a valve combination.
 # With this, we avoid function header cluttering.
-mutable struct world
-    currNode::node
+mutable struct World
+    currNode::Node
     timeRemaining::Integer
     openedValves::Set
     currFlow::Integer
-    NonTrivialNodes::Vector{node}
+    NonTrivialNodes::Vector{Node}
     distances::Matrix{Integer}
 
-    function world(currNode::node, timeRemaining::Integer, openedValves::Set, currFlow::Integer, NonTrivialNodes::Vector{node}, distances::Matrix{<:Integer})
+    function World(currNode::Node, timeRemaining::Integer, openedValves::Set, currFlow::Integer, NonTrivialNodes::Vector{Node}, distances::Matrix{<:Integer})
         return new(currNode, timeRemaining, openedValves, currFlow, NonTrivialNodes, distances)
     end
 end
@@ -45,7 +45,7 @@ function releaseMaximumPressureAlone()
     # we only need to select nodes with a non-trivial flow value,
     # with floyd-warshall we already have the distances between them
     # and can just ignore the rest of the graph.
-    NonTrivialValves = Vector{node}()
+    NonTrivialValves = Vector{Node}()
     for currNode in nodes
         if currNode.flow != 0
             push!(NonTrivialValves, currNode)
@@ -53,7 +53,7 @@ function releaseMaximumPressureAlone()
     end
 
     # we initalize our "world" in which the simulating happens with the conditions of Part1
-    thisWorld = world(nodeNames["AA"], 30, Set([]), 0, NonTrivialValves, distances)
+    thisWorld = World(nodeNames["AA"], 30, Set([]), 0, NonTrivialValves, distances)
     bestFlowValues = getBestFlowValues(thisWorld, Dict{Set,Integer}())
 
     println(maximum(values(bestFlowValues)))
@@ -69,7 +69,7 @@ function releaseMaximumPressureWithElephant()
 
     # Same as above, we only need to consider non-trivial valves
     # and can ignore the rest
-    NonTrivialValves = Vector{node}()
+    NonTrivialValves = Vector{Node}()
     for currNode in nodes
         if currNode.flow != 0
             push!(NonTrivialValves, currNode)
@@ -77,7 +77,7 @@ function releaseMaximumPressureWithElephant()
     end
 
     # we initialize our "world" with the conditions of Part2
-    thisWorld = world(nodeNames["AA"], 26, Set([]), 0, NonTrivialValves, distances)
+    thisWorld = World(nodeNames["AA"], 26, Set([]), 0, NonTrivialValves, distances)
     bestFlowValues = getBestFlowValues(thisWorld, Dict{Set,Integer}())
 
     # finally we find the maximum of the sum of two disjoint valve-subsets
@@ -102,7 +102,7 @@ end
 # This is where the magic happens.
 # We store the best values we found for a set of opened values regardless of the order
 # and then basically simulate every possible path and store those best values
-function getBestFlowValues(w::world, bestValues::Dict{Set,Integer})
+function getBestFlowValues(w::World, bestValues::Dict{Set,Integer})
     # if our current value is better than the old best value
     # for that set of opened valves, we update the best value
     bestValues[w.openedValves] = max(get(bestValues, w.openedValves, 0), w.currFlow)
@@ -124,7 +124,7 @@ function getBestFlowValues(w::world, bestValues::Dict{Set,Integer})
             newFlow = w.currFlow + time * nextNode.flow
 
 
-            newWorld = world(nextNode, time, newOpenedValves, newFlow, w.NonTrivialNodes, w.distances)
+            newWorld = World(nextNode, time, newOpenedValves, newFlow, w.NonTrivialNodes, w.distances)
             getBestFlowValues(newWorld, bestValues)
         end
     end
@@ -135,7 +135,7 @@ end
 # standard Floyd-Warshall Algorithm.
 # We populate the matrix with (hopefully) high enough values 
 # so that distances are intialized correctly.
-function FloydWarshallAlgorithm(nodes::Vector{node})
+function FloydWarshallAlgorithm(nodes::Vector{Node})
     distances = zeros(Int, length(nodes), length(nodes))
 
     # since we add two of these values in the min-check,
@@ -165,8 +165,8 @@ end
 # We match the parts of the input lines we need via a regex and then populate our nodes.
 # if a node is mentioned before its defining line is parsed, we create a preliminary version of it.
 function parseInput()
-    nodes = Vector{node}()
-    nodeNames = Dict{String,node}()
+    nodes = Vector{Node}()
+    nodeNames = Dict{String,Node}()
 
     # This captures the relevant parts of the lines 
     regex = r"Valve ([a-zA-Z]+) has flow rate=([0-9]+); tunnels* leads* to valves* ([a-zA-Z]+(?:, [a-zA-Z]+)*)"
@@ -186,7 +186,7 @@ function parseInput()
             thisNode = nodeNames[name]
             thisNode.flow = flow
         else
-            thisNode = node(name, i, flow)
+            thisNode = Node(name, i, flow)
             nodeNames[name] = thisNode
             push!(nodes, thisNode)
             i += 1
@@ -196,7 +196,7 @@ function parseInput()
         # a preliminary version is made.
         for neighbour in neighbours
             if !haskey(nodeNames, neighbour)
-                neighbourNode = node(neighbour, i)
+                neighbourNode = Node(neighbour, i)
                 nodeNames[neighbour] = neighbourNode
                 push!(nodes, neighbourNode)
                 i += 1
