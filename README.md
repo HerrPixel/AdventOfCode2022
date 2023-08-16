@@ -9,6 +9,8 @@ To run this, your first need to instantiate the project:
 ```bash
 $ julia --project=.
 
+julia>
+
 # Press ] to get into pkg
 
 (AdventOfCode2022) pkg> instantiate
